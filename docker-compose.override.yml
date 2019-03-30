@@ -25,9 +25,11 @@ services:
 
   nginx:
     environment:
-      NGINX_CONF_INCLUDE: /var/www/html/nginx.conf
+      NGINX_VHOST_PRESET: wordpress_mapping
     volumes:
       - ./www/:/var/www/html
+      - ./blogname_id_map.conf:/etc/nginx/conf.d/blogname_id_map.conf
+      - ./wordpress.conf.tmpl:/etc/gotpl/presets/wordpress_mapping.conf.tmpl
     labels:
       - 'traefik.frontend.rule=HostRegexp:{subdomain:(www|2010|2011|2012|2013|2014)}.${PROJECT_BASE_URL},${PROJECT_BASE_URL}'
     #  - 'traefik.frontend.redirect.entryPoint=https'

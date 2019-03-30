@@ -1,16 +1,56 @@
 version: "3"
 
 services:
-  php:
-    image: wodby/wordpress:$WORDPRESS_TAG
-    environment:
-      PHP_FPM_CLEAR_ENV: "no"
+  # mysql:
+  #   image: mysql:5.6.21
+  #   container_name: "${PROJECT_NAME}_mysql"
+  #   stop_grace_period: 30s
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: $DB_ROOT_PASSWORD
+  #     MYSQL_DATABASE: $DB_NAME
+  #     MYSQL_USER: $DB_USER
+  #     MYSQL_PASSWORD: $DB_PASSWORD
+  #   volumes:
+  #   #  - ./mariadb-init:/docker-entrypoint-initdb.d # Place init .sql file(s) here.
+  #     - ./mysql:/var/lib/mysql # I want to manage volumes manually.
+
+  mariadb:
+    # image: hello-world
     volumes:
-      - codebase:/var/www/html
+      - ./mariadb-init:/docker-entrypoint-initdb.d # Place init .sql file(s) here.
+
+  php:
+    volumes:
+      - ./www/:/var/www/html
 
   nginx:
+    environment:
+      NGINX_CONF_INCLUDE: /var/www/html/nginx.conf
     volumes:
-      - codebase:/var/www/html
+      - ./www/:/var/www/html
+    labels:
+      - 'traefik.frontend.rule=HostRegexp:{subdomain:(www|2010|2011|2012|2013|2014)}.${PROJECT_BASE_URL},${PROJECT_BASE_URL}'
+    #  - 'traefik.frontend.redirect.entryPoint=https'
 
-volumes:
-  codebase:
+  traefik:
+    command: --web --docker --logLevel=INFO
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.toml:/traefik.toml
+
+  pma:
+    image: phpmyadmin/phpmyadmin
+    container_name: "${PROJECT_NAME}_pma"
+    environment:
+      PMA_HOST: $DB_HOST
+      PMA_USER: $DB_USER
+      PMA_PASSWORD: $DB_PASSWORD
+      PHP_UPLOAD_MAX_FILESIZE: 1G
+      PHP_MAX_INPUT_VARS: 1G
+    labels:
+      - 'traefik.backend=${PROJECT_NAME}_pma'
+      - 'traefik.port=80'
+      - 'traefik.frontend.rule=Host:pma.${PROJECT_BASE_URL}'
